@@ -26,9 +26,18 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.bind.annotation.RestController;
 import springfox.documentation.builders.ApiInfoBuilder;
 import springfox.documentation.oas.annotations.EnableOpenApi;
+import springfox.documentation.service.ApiKey;
+import springfox.documentation.service.AuthorizationScope;
+import springfox.documentation.service.SecurityReference;
 import springfox.documentation.spi.DocumentationType;
+import springfox.documentation.spi.service.contexts.OperationContext;
+import springfox.documentation.spi.service.contexts.SecurityContext;
 import springfox.documentation.spring.web.plugins.Docket;
 
+import java.util.Collections;
+import java.util.List;
+
+import static de.rwth.idsg.steve.SteveConfiguration.CONFIG;
 import static springfox.documentation.builders.RequestHandlerSelectors.withClassAnnotation;
 
 /**
@@ -40,29 +49,55 @@ import static springfox.documentation.builders.RequestHandlerSelectors.withClass
 @Conditional(SteveProdCondition.class)
 public class ApiDocsConfiguration {
 
-    static {
-        // Set the path with prefix /manager to protect the documentation behind regular sign-in
-        // Default is just /v3/api-docs
-        System.setProperty("springfox.documentation.open-api.v3.path", "/manager/v3/api-docs");
-    }
+  static {
+    // Set the path with prefix /manager to protect the documentation behind regular sign-in
+    // Default is just /v3/api-docs
+    System.setProperty("springfox.documentation.open-api.v3.path", "/manager/v3/api-docs");
+  }
 
-    @Bean
-    public Docket apiDocs() {
-        String title = "SteVe REST API Documentation";
+  @Bean
+  public Docket apiDocs() {
+    String title = "SteVe REST API Documentation";
 
-        var apiInfo = new ApiInfoBuilder()
-            .title(title)
-            .description(title)
-            .license("GPL-3.0")
-            .licenseUrl("https://github.com/steve-community/steve/blob/master/LICENSE.txt")
-            .version(SteveConfiguration.CONFIG.getSteveVersion())
-            .build();
+    var apiInfo = new ApiInfoBuilder()
+        .title(title)
+        .description(title)
+        .license("GPL-3.0")
+        .licenseUrl("https://github.com/steve-community/steve/blob/master/LICENSE.txt")
+        .version(SteveConfiguration.CONFIG.getSteveVersion())
+        .build();
 
-        return new Docket(DocumentationType.OAS_30)
-            .useDefaultResponseMessages(false)
-            .apiInfo(apiInfo)
-            .select()
-            .apis(withClassAnnotation(RestController.class))
-            .build();
-    }
+    return new Docket(DocumentationType.OAS_30)
+        .useDefaultResponseMessages(false)
+        .apiInfo(apiInfo)
+        .select()
+        .apis(withClassAnnotation(RestController.class))
+        .build()
+        .securitySchemes(Collections.singletonList(apiKey()))
+        .securityContexts(Collections.singletonList(securityContext()));
+  }
+
+  private static ApiKey apiKey() {
+    return new ApiKey("apiKey", CONFIG.getWebApi().getHeaderKey(), "header");
+  }
+
+  private static SecurityContext securityContext() {
+    return SecurityContext.builder()
+        .securityReferences(defaultAuth())
+        .operationSelector(ApiDocsConfiguration::matchesApiPath)
+        .build();
+  }
+
+  private static boolean matchesApiPath(OperationContext context) {
+    return context.requestMappingPattern().matches(CONFIG.getApiMapping() + "/.*");
+  }
+
+  private static List<SecurityReference> defaultAuth() {
+    AuthorizationScope authorizationScope
+        = new AuthorizationScope("global", "accessEverything");
+    AuthorizationScope[] authorizationScopes = new AuthorizationScope[1];
+    authorizationScopes[0] = authorizationScope;
+    return Collections.singletonList(
+        new SecurityReference("apiKey", authorizationScopes));
+  }
 }
