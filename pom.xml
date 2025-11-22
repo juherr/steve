@@ -44,7 +44,7 @@
     <cxf.version>4.1.3</cxf.version>
     <lombok.version>1.18.42</lombok.version>
 
-    <owasp-encoder.version>1.3.1</owasp-encoder.version>
+    <owasp-encoder.version>1.4.0</owasp-encoder.version>
     <jaxb-plugins.version>4.0.11</jaxb-plugins.version>
   </properties>
 
